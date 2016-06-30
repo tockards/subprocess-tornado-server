@@ -25,8 +25,8 @@ def main():
     line = client.read_until('\n')
     while True:
         if 'end' in line:
-            print(line.strip())
             break
+        print(line.strip())
         try:
             line = client.read_until('\n')
         except EOFError:
