@@ -98,6 +98,7 @@ class ReadServerStreamHandler(object):
                       "--path={}".format(storage_base),
                       "--query={}".format(self.address)]
 
+        print (' '.join(script_cmd))
         yield self.call_process(script_cmd, self.stream, self.address)
   
     @coroutine
@@ -121,7 +122,7 @@ class ReadServerStreamHandler(object):
 
         try:
             while True:
-                str_ = yield pipe_stream.read_bytes(102400, partial=True)
+                str_ = yield pipe_stream.read_bytes(10240000, partial=True)
                 yield stream.write(str_)
         except StreamClosedError:
             pass
