@@ -12,24 +12,32 @@ Basic Implementation of subprocess in tornado
 from __future__ import print_function
 
 import logging
+import json as json
 
 from sys import argv
 from functools import partial
+
+
+from tornado import options 
 
 from tornado.tcpserver import TCPServer
 from tornado.process import Subprocess
 from tornado.iostream import PipeIOStream, StreamClosedError
 from tornado.gen import coroutine, maybe_future, moment
-
 from tornado.ioloop import IOLoop
+
+
+
 
 logger = logging.getLogger()
 logging.basicConfig()
 
 
+
+
 class ReadServerStreamHandler(object):
 
-    def __init__(self, stream, address,  logger):
+    def __init__(self, stream, address, script,  logger):
         """TODO: Docstring for __init__.
 
         :stream: TODO
@@ -39,6 +47,7 @@ class ReadServerStreamHandler(object):
         self._logger = logger
         self.stream = stream
         self.address = address
+        self.script = script
 
     @coroutine
     def on_connect(self):
@@ -60,13 +69,37 @@ class ReadServerStreamHandler(object):
             except StreamClosedError:
                 break
             if client_str:
-                yield self.call_process(client_str.split(), self.stream, self.address)
+                yield self.process_request(client_str)
             else:
                 pass
             yield self.stream.write("{'end':''}\n")
         pass
 
 
+    @coroutine
+    def process_request(self, line):
+        """TODO: Docstring for process_request.
+        :returns: TODO
+
+        """
+        req = json.loads(line)
+        req = req['params']
+        starttime = req['seconds'][0]
+        endtime = req['seconds'][1]
+        sensors = "{},{}".format( req['sensors'][req['sensors'].keys()[0]][0] , req['sensors'].keys()[0])
+        format
+        sitename = req['sitename']
+        storage_base = '/var/kat/katstore'
+        script_cmd = ["python" , self.script,
+                      "--start-time={}".format(starttime),
+                      "--end-time={}".format(endtime),
+                      "--S={}".format(sensors),
+                      "--site-name={}".format(sitename),
+                      "--path={}".format(storage_base),
+                      "--query={}".format(self.address)]
+
+        yield self.call_process(script_cmd, self.stream, self.address)
+  
     @coroutine
     def call_process(self, cmd, stream, address, io_loop=None): 
         """ Calls process 
@@ -108,13 +141,22 @@ class MyProcessServer(TCPServer):
 
     """Docstring for MyProcessServer. """
 
+    def __init__(self, script, io_loop=None, internal_metrics=None):
+        super(MyProcessServer, self).__init__(io_loop)
+        self.script = script
+     
     @coroutine
     def handle_stream(self, stream, address):
-        client_stream = ReadServerStreamHandler(stream, address, logger)
+        client_stream = ReadServerStreamHandler(stream, address, self.script, logger)
         yield client_stream.on_connect()
 
 if __name__ == "__main__":
-    server = MyProcessServer()
+    options.define("script", help="script to read")
+    options.define("logger", help="logger")
+
+
+    options.parse_command_line()
+    server = MyProcessServer(options.options.script)
     server.listen(8888)
     io_loop = IOLoop.current()
     io_loop.start()
