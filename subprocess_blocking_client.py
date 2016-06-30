@@ -20,11 +20,13 @@ def main():
     """
     client = telnetlib.Telnet(argv[1], argv[2])
     args = ' '.join(argv[3:])
-    print(args)
+    #print(args)
     client.write(args+'\n')
     line = client.read_until('\n')
     while True:
-        print(line.strip())
+        if 'end' in line:
+            print(line.strip())
+            break
         try:
             line = client.read_until('\n')
         except EOFError:
